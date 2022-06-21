@@ -26,7 +26,7 @@
 # import torchvision.transforms as transforms
 # import torchvision.datasets as datasets
 # import torchvision.models as models
-
+#from collections.abc import Mapping
 from typing import Optional
 import torch
 from torch import nn, optim
@@ -34,12 +34,14 @@ from torch import nn, optim
 import torchmetrics
 
 import pytorch_lightning as pl
+from pytorch_lightning.loggers import TensorBoardLogger
 from torch.utils.data import random_split, DataLoader
 
 # Note - you must have torchvision installed for this example
 from torchvision.datasets import MNIST
 from torchvision import transforms
 
+import pdb
 
 
 class MNISTDataModule(pl.LightningDataModule):
@@ -143,23 +145,64 @@ class SimpleMLP(pl.LightningModule):
 
 # class residual_bound_evaluator
 
-from pytorch_lightning.loggers import TensorBoardLogger
+def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_writer):
+    running_loss = 0.
+    last_loss = 0.
+    for i, data in enumerate(training_loader):
+        inputs, labels = data
+        pdb.set_trace()
+        inputs.requires_grad_(True)
+        inputs.retain_grad()
 
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = loss_fn(outputs, labels)
+
+
+        loss.backward()
+
+        
+        norm_grad_wrt_input = (inputs.grad**2).sum()
+        norm_grad_wrt_weights = torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
+
+        pdb.set_trace()
+
+        input.requires_grad_(False)
+
+
+
+        optimizer.step()
+        # Gather data and report
+        running_loss += loss.item()
+        if i % 1000 == 999:
+            last_loss = running_loss / 1000 # loss per batch
+            print('  batch {} loss: {}'.format(i + 1, last_loss))
+            #tb_x = epoch_index * len(training_loader) + i + 1
+            #tb_writer.add_scalar('Loss/train', last_loss, tb_x)
+            running_loss = 0.
+
+    return last_loss
+
+
+def main_manual_train():
+    mnist = MNISTDataModule(data_dir="./data")
+    simple_mlp = SimpleMLP([40,40,10])  # this is our LightningModule
+    logger = TensorBoardLogger('lightning_logs/', name='my_model')
+    mnist.setup()
+    optimizer = optim.Adam(simple_mlp.parameters(), lr=1e-3)
+    train_one_epoch(mnist.train_dataloader(), simple_mlp, nn.CrossEntropyLoss(label_smoothing=0.1), optimizer, 1, None)
 
 def main():
     mnist = MNISTDataModule(data_dir="./data")
-    model = SimpleMLP([40,40,10])  # this is our LightningModule
+    simple_mlp = SimpleMLP([40,40,10])  # this is our LightningModule
     logger = TensorBoardLogger('lightning_logs/', name='my_model')
-
     trainer = pl.Trainer(max_epochs=1, num_processes=1, logger=logger, deterministic=True)
-
-
-    trainer.fit(model, datamodule=mnist)
+    trainer.fit(simple_mlp, datamodule=mnist)
 
 
 if __name__ == '__main__':
     pl.seed_everything(1234)
-    main()
+    main_manual_train()
     #print(cifar100.train_dataloader)
     #trainer = pl.Trainer(max_epochs=1, num_processes=1, gpus=0)
     #trainer.fit(model, datamodule=cifar100)
