@@ -190,8 +190,8 @@ def main_manual_train():
     train_one_epoch(mnist.train_dataloader(), simple_mlp, nn.CrossEntropyLoss(label_smoothing=0.1), optimizer, 1, None)
 
 def main():
-    mnist = MNISTDataModule(data_dir="./data")
-    simple_mlp = SimpleMLP([40,40,10])  # this is our LightningModule
+    mnist = MNISTDataModule(data_dir="./data", batch_size=32)
+    print('batch size is:', batch_size)
     #simple_mlp = SimpleMLP([40,40,10])  # this is our LightningModule
     simple_mlp = SkipMLP([40,40,40,40,10], 0.01)
     logger = TensorBoardLogger('lightning_logs/', name='my_model')

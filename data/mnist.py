@@ -5,9 +5,10 @@ from typing import Optional
 from torchvision.datasets import MNIST
 from torchvision import transforms
 class MNISTDataModule(pl.LightningDataModule):
-    def __init__(self, data_dir: str = "./"):
+    def __init__(self, data_dir: str = "./", batch_size = 32):
         super().__init__()
         self.data_dir = data_dir
+        self.batch_size = batch_size
         self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 
     def prepare_data(self):
@@ -30,13 +31,13 @@ class MNISTDataModule(pl.LightningDataModule):
             self.mnist_predict = MNIST(self.data_dir, train=False, transform=self.transform)
 
     def train_dataloader(self):
-        return DataLoader(self.mnist_train, batch_size=1)
+        return DataLoader(self.mnist_train, batch_size=self.batch_size)
 
     def val_dataloader(self):
-        return DataLoader(self.mnist_val, batch_size=32)
+        return DataLoader(self.mnist_val, batch_size=self.batch_size)
 
     def test_dataloader(self):
-        return DataLoader(self.mnist_test, batch_size=32)
+        return DataLoader(self.mnist_test, batch_size=self.batch_size)
 
     def predict_dataloader(self):
-        return DataLoader(self.mnist_predict, batch_size=32)
+        return DataLoader(self.mnist_predict, batch_size=self.batch_size)
