@@ -30,6 +30,8 @@
 from typing import Optional
 from collections import OrderedDict
 from functools import partial
+import pdb
+
 
 import torch
 from torch import nn, optim, linalg
@@ -44,101 +46,11 @@ from torch.utils.data import random_split, DataLoader
 from torchvision.datasets import MNIST
 from torchvision import transforms
 
-import pdb
+from models.simple_mlp import SimpleMLP
+from data.mnist import MNISTDataModule
 
-
-class MNISTDataModule(pl.LightningDataModule):
-    def __init__(self, data_dir: str = "./"):
-        super().__init__()
-        self.data_dir = data_dir
-        self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
-
-    def prepare_data(self):
-        # download
-        MNIST(self.data_dir, train=True, download=True)
-        MNIST(self.data_dir, train=False, download=True)
-
-    def setup(self, stage: Optional[str] = None):
-
-        # Assign train/val datasets for use in dataloaders
-        if stage == "fit" or stage is None:
-            mnist_full = MNIST(self.data_dir, train=True, transform=self.transform)
-            self.mnist_train, self.mnist_val = random_split(mnist_full, [55000, 5000])
-
-        # Assign test dataset for use in dataloader(s)
-        if stage == "test" or stage is None:
-            self.mnist_test = MNIST(self.data_dir, train=False, transform=self.transform)
-
-        if stage == "predict" or stage is None:
-            self.mnist_predict = MNIST(self.data_dir, train=False, transform=self.transform)
-
-    def train_dataloader(self):
-        return DataLoader(self.mnist_train, batch_size=1)
-
-    def val_dataloader(self):
-        return DataLoader(self.mnist_val, batch_size=32)
-
-    def test_dataloader(self):
-        return DataLoader(self.mnist_test, batch_size=32)
-
-    def predict_dataloader(self):
-        return DataLoader(self.mnist_predict, batch_size=32)
 
 # class simpler dataset
-
-class SimpleMLP(pl.LightningModule):
-    def __init__(self, hidden_layer_config, wealy_relu_neg_slope=0.01):
-        super().__init__()
-        next_layer_input = 784
-        #layers = []
-        layers = OrderedDict()
-        for _i, hidden_layer in enumerate(hidden_layer_config):
-            # Create layer
-            # layers.append(nn.Linear(in_features=next_layer_input, out_features=hidden_layer))
-            # layers.append(nn.LeakyReLU(negative_slope=wealy_relu_neg_slope))
-            layers.update({'fc'+ str(_i): nn.Linear(in_features=next_layer_input, out_features=hidden_layer)})
-            layers.update({'af'+ str(_i): nn.LeakyReLU(negative_slope=wealy_relu_neg_slope)})
-            # Update input size
-            next_layer_input = hidden_layer
-
-        self.layers = nn.Sequential(layers)
-
-        self.criterium = nn.CrossEntropyLoss(label_smoothing= 0.1)
-
-        # metrics
-        self.train_acc = torchmetrics.Accuracy()
-        self.valid_acc = torchmetrics.Accuracy()
-
-    def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=1e-3)
-        return optimizer
-
-    def forward(self, x):
-        batch_size, _, _, _ = x.size()
-        x_resized = x.view(batch_size, -1)
-        return self.layers(x_resized)
-
-    def training_step(self, batch, batch_idx):
-        data, target = batch
-        preds = self(data)
-
-        loss = self.criterium(preds, target)
-        # Logging to TensorBoard by default
-        self.train_acc(preds, target)
-        self.log('train_acc', self.train_acc, on_step=True, on_epoch=True)
-        self.log("train_loss", loss)
-        return loss
-
-    def validation_step(self, valid_batch, batch_idx):
-        data, target = valid_batch
-        preds = self(data)
-        _, max_pred = torch.max(preds, 1)
-        loss = self.criterium(preds, target)
-        self.log("valid_loss", loss)
-
-        self.valid_acc(preds, target)
-        self.log('valid_acc', self.valid_acc, on_step=True, on_epoch=True)
-        return loss
         #self.criterion(self(inputs), labels)
 
         #return {"loss": loss, "pred": max_pred}
