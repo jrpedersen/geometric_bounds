@@ -47,6 +47,7 @@ from torchvision.datasets import MNIST
 from torchvision import transforms
 
 from models.simple_mlp import SimpleMLP
+from models.skip_mlp import SkipMLP
 from data.mnist import MNISTDataModule
 
 
@@ -179,7 +180,8 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
 
 def main_manual_train():
     mnist = MNISTDataModule(data_dir="./data")
-    simple_mlp = SimpleMLP([40,40,10], 0.01)
+    #simple_mlp = SimpleMLP([40,40,40,40,10], 0.01)
+    simple_mlp = SkipMLP([40,40,40,40,10], 0.01)
     get_all_layers(simple_mlp)
     logger = TensorBoardLogger('lightning_logs/', name='my_model')
     mnist.setup()
@@ -190,6 +192,8 @@ def main_manual_train():
 def main():
     mnist = MNISTDataModule(data_dir="./data")
     simple_mlp = SimpleMLP([40,40,10])  # this is our LightningModule
+    #simple_mlp = SimpleMLP([40,40,10])  # this is our LightningModule
+    simple_mlp = SkipMLP([40,40,40,40,10], 0.01)
     logger = TensorBoardLogger('lightning_logs/', name='my_model')
     trainer = pl.Trainer(max_epochs=1, num_processes=1, logger=logger, deterministic=True)
     trainer.fit(simple_mlp, datamodule=mnist)
@@ -197,7 +201,8 @@ def main():
 
 if __name__ == '__main__':
     pl.seed_everything(1234)
-    main_manual_train()
+    main()
+    #main_manual_train()
     #print(cifar100.train_dataloader)
     #trainer = pl.Trainer(max_epochs=1, num_processes=1, gpus=0)
     #trainer.fit(model, datamodule=cifar100)
