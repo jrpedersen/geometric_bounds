@@ -152,13 +152,16 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
         h_n, jh_n = get_hn_and_jhn(model, inputs)
 
         bound = mlp_bound(model,inputs)
+        tight_bound=tighter_mlp_bound(model,inputs)
         print('f in', norm_grad_wrt_input)
         print('bound', bound)
+        print('bound2', tight_bound)
         print('f in * bound', norm_grad_wrt_input*bound)
+        print('Tighter f in * bound', norm_grad_wrt_input*tight_bound)
         print('f param', norm_grad_wrt_weights)
         #assert all([torch.allclose(a,b[0]) for (a,b) in zip(h_n, list(visualisation.values())[0:6:2])])
 
-        print('bound2', tighter_mlp_bound(model, inputs))
+
 
         pdb.set_trace()
         optimizer.step()
