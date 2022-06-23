@@ -84,10 +84,8 @@ class MNISTDataModule(pl.LightningDataModule):
     def predict_dataloader(self):
         return DataLoader(self.mnist_predict, batch_size=32)
 
-
 # class simpler dataset
 
-# class model_factory
 class SimpleMLP(pl.LightningModule):
     def __init__(self, hidden_layer_config, wealy_relu_neg_slope=0.01):
         super().__init__()
@@ -140,18 +138,10 @@ class SimpleMLP(pl.LightningModule):
 
         self.valid_acc(preds, target)
         self.log('valid_acc', self.valid_acc, on_step=True, on_epoch=True)
+        return loss
         #self.criterion(self(inputs), labels)
 
         #return {"loss": loss, "pred": max_pred}
-
-# function for MLP bound
-def mlp_term_bound(mlp_layer):
-    weight_spectral_norm = linalg.matrix_norm(mlp_layer.weight, ord=2)
-    h_n = linalg.vector_norm(1)
-    jac_h_n =linalg.matrix_norm(1, ord='fro')
-    return (1 + h_n**2) / (weight_spectral_norm**2 * jac_h_n**2)
-
-
 
 visualisation = {}
 def named_hook(m,i,o, name=None):
@@ -196,7 +186,6 @@ def get_hn_and_jhn(model, x):
         jh_n.append(torch.squeeze(jacrev(partial_net)(h_0)))
     return h_n, jh_n
 
-
 def mlp_bound(model, x):
     h_n, jh_n = get_hn_and_jhn(model, x)
     params = [param for (i,param) in enumerate(model.parameters()) if i%2==0]
@@ -208,11 +197,7 @@ def mlp_bound(model, x):
             linalg.matrix_norm(jh, ord='fro')**2)
         )
     return bound
-#a=nn.Sequential(OrderedDict(list(model.layers._modules.items())[:4]))
 
-#ft_jacobian = jacrev(predict, argnums=2)(weight, bias, x)
-
-#jacrev(a)(inputs.view(1,-1))
 
 def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_writer):
     running_loss = 0.
