@@ -110,6 +110,17 @@ def mlp_bound(model, x):
         )
     return bound
 
+def tighter_mlp_bound(model, x):
+    h_n, jh_n = get_hn_and_jhn(model, x)
+    params = [param for (i,param) in enumerate(model.parameters()) if i%2==0]
+    bound = 0
+    for w, h, jh in zip(params,h_n,jh_n):
+        bound += (
+            (1 + linalg.vector_norm(h)**2) /
+            (linalg.matrix_norm(torch.matmul(w, jh), ord='fro')**2)
+        )
+    return bound
+
 
 def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_writer):
     running_loss = 0.
@@ -147,6 +158,7 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
         print('f param', norm_grad_wrt_weights)
         #assert all([torch.allclose(a,b[0]) for (a,b) in zip(h_n, list(visualisation.values())[0:6:2])])
 
+        print('bound2', tighter_mlp_bound(model, inputs))
 
         pdb.set_trace()
         optimizer.step()
