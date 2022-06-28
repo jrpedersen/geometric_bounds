@@ -51,68 +51,64 @@ from models.skip_mlp import SkipMLP
 from data.mnist import MNISTDataModule
 from utils import get_all_layers
 
-from functorch import jacrev
+from functorch import jacrev, vmap
 
 def calc_bound(w, h, jh):
     return (
-        (1 + linalg.vector_norm(h)**2) /
+        (1 + linalg.vector_norm(h, dim=1)**2) /
         (linalg.matrix_norm(w, ord=2)**2 *
         linalg.matrix_norm(jh, ord='fro')**2)
     )
 
 def calc_tight_bound(w, h, jh):
     return (
-        (1 + linalg.vector_norm(h)**2) /
-        (linalg.matrix_norm(torch.matmul(w, jh), ord='fro')**2)
+        (1 + linalg.vector_norm(h, dim=1)**2) /
+        (linalg.matrix_norm(torch.bmm(w, jh), ord='fro')**2)
     )
 
-
 def mlp_bound(weight_layer, partial_net, x, bound_f = calc_tight_bound):
-    w = weight_layer.weight
-    h_0 = x.view(1,-1)
-
+    h_0 = x.view(x.shape[0],-1)
     if len(partial_net) > 0:
         h_n = partial_net(h_0)
-        jh_n = torch.squeeze(jacrev(partial_net)(h_0))
+        jh_n = vmap(jacrev(partial_net))(h_0)
     else:
         h_n = h_0
-        jh_n = torch.eye(h_0.shape[1]).unsqueeze(0)
+        jh_n = torch.eye(h_0.shape[1]).unsqueeze(0).repeat(x.shape[0],1,1)
+
+    w = weight_layer.weight.repeat(x.shape[0],1,1)
     return bound_f(w, h_n, jh_n), (w,h_n,jh_n)
 
-def skip_mlp_bound(weight_layer, partial_net, x, negative_slope, bound_f = calc_tight_bound):
-    w_base = weight_layer.weight
+def skip_mlp_bound(weight_layer, partial_net, x, bound_f = calc_tight_bound):
+    negative_slope = weight_layer.activation.negative_slope
 
-    h_0 = x.view(1,-1)
+    h_0 = x.view(x.shape[0],-1)
     h_n = partial_net(h_0)
-    jh_n = torch.squeeze(jacrev(partial_net)(h_0))
-    pdb.set_trace()
-    w_skip =torch.eye(*w_base.shape) * (torch.gt(-weight_layer(h_n), 0) * negative_slope**(-1))
+    jh_n = vmap(jacrev(partial_net))(h_0)
+
+    w_base = weight_layer.fc.weight.repeat(x.shape[0],1,1)
+    w_skip =torch.eye(*w_base.shape[1:]).unsqueeze(0).repeat(x.shape[0],1,1)
+    w_skip = w_skip * (1 + (torch.gt(-weight_layer.fc(h_n), 0) * (negative_slope**(-1) - 1 ))).unsqueeze(1)
     w = w_base + w_skip
-
     return bound_f(w, h_n, jh_n), (w,h_n,jh_n)
-
-
 
 def get_bounds(model, x):
     modules_list = list(model.layers._modules.items())
+    bound_types = {
+        'fc': mlp_bound,
+        'sk': skip_mlp_bound
+    }
     layer_wise_bound = []
     for i in range(len(modules_list)):
         name, layer = modules_list[i]
-
-        if name[:2] == 'fc':
-            partial_net = nn.Sequential(OrderedDict(modules_list[:i]))
-            weight_layer = layer
-            bound, _ = mlp_bound(weight_layer, partial_net, x)
-
-        elif name[:2] == 'sk':
-            partial_net = nn.Sequential(OrderedDict(modules_list[:i]))
-            weight_layer = layer.fc
-            bound, _ = skip_mlp_bound(weight_layer, partial_net, x, layer.activation.negative_slope)
-        else:
-            continue
-        layer_wise_bound.append(bound)
-    return torch.tensor(layer_wise_bound)
-
+        if name[:2] in {'fc','sk'}:
+            bound, _ = bound_types[name[:2]](
+                layer,
+                nn.Sequential(OrderedDict(modules_list[:i])),
+                x
+            )
+            layer_wise_bound.append(bound)
+    pdb.set_trace()
+    return torch.stack(layer_wise_bound).T
 
 def get_hn_and_jhn(model, x):
     h_0 = x.view(1,-1)
@@ -190,7 +186,7 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
         test = get_bounds(model,inputs)
         print('\n\n new way to calc bounds')
         print(test)
-        print(test.sum())
+        print(test.sum(dim=1))
         pdb.set_trace()
         optimizer.step()
         # Gather data and report
@@ -206,11 +202,11 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
 
 
 def main_manual_train():
-    mnist = MNISTDataModule(data_dir="./data", batch_size=1)
+    mnist = MNISTDataModule(data_dir="./data", batch_size=4)
     weakly_relu_neg_slope = 0.01
     #simple_mlp = SimpleMLP([40,40,10], 0.01)
-    simple_mlp = SimpleMLP([40,40,40,40,10], 0.01)
-    #simple_mlp = SkipMLP([40,40,40,40,10], weakly_relu_neg_slope)
+    #simple_mlp = SimpleMLP([40,40,40,40,10], 0.01)
+    simple_mlp = SkipMLP([40,40,40,40,10], weakly_relu_neg_slope)
     logger = TensorBoardLogger('lightning_logs/', name='my_model')
     mnist.setup()
     optimizer = optim.Adam(simple_mlp.parameters(), lr=1e-3)
@@ -219,18 +215,24 @@ def main_manual_train():
 
 def main():
     mnist = MNISTDataModule(data_dir="./data", batch_size=32)
-    print('batch size is:', batch_size)
+
+
     #simple_mlp = SimpleMLP([40,40,10])  # this is our LightningModule
     simple_mlp = SkipMLP([40,40,40,40,10], 0.01)
     logger = TensorBoardLogger('lightning_logs/', name='my_model')
-    trainer = pl.Trainer(max_epochs=1, num_processes=1, logger=logger, deterministic=True)
+    trainer = pl.Trainer(max_epochs=1,
+                         num_processes=1,
+                         accelerator='gpu',
+                         devices=1,
+                         logger=logger,
+                         deterministic=True)
     trainer.fit(simple_mlp, datamodule=mnist)
 
 
 if __name__ == '__main__':
     pl.seed_everything(1234)
-    main()
-    #main_manual_train()
+    #main()
+    main_manual_train()
     #print(cifar100.train_dataloader)
     #trainer = pl.Trainer(max_epochs=1, num_processes=1, gpus=0)
     #trainer.fit(model, datamodule=cifar100)
