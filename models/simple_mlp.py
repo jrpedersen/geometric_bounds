@@ -2,8 +2,8 @@ from collections import OrderedDict
 
 import torch
 from torch import nn, optim
-import torchmetrics
-
+from torch.nn import functional as F
+from torchmetrics.functional import accuracy
 import pytorch_lightning as pl
 
 class SimpleMLP(pl.LightningModule):
@@ -23,11 +23,11 @@ class SimpleMLP(pl.LightningModule):
 
         self.layers = nn.Sequential(layers)
 
-        self.criterium = nn.CrossEntropyLoss(label_smoothing= 0.1)
+        #self.criterium = nn.CrossEntropyLoss(label_smoothing= 0.1)
 
         # metrics
-        self.train_acc = torchmetrics.Accuracy()
-        self.valid_acc = torchmetrics.Accuracy()
+        #self.train_acc = torchmetrics.Accuracy()
+        #self.valid_acc = torchmetrics.Accuracy()
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=1e-3)
@@ -42,10 +42,9 @@ class SimpleMLP(pl.LightningModule):
         data, target = batch
         preds = self(data)
 
-        loss = self.criterium(preds, target)
+        loss = F.cross_entropy(preds, target, label_smoothing=0.1)
         # Logging to TensorBoard by default
-        self.train_acc(preds, target)
-        self.log('train_acc', self.train_acc, on_step=True, on_epoch=True)
+        self.log('train_acc', accuracy(preds, target), on_step=True, on_epoch=True)
         self.log("train_loss", loss)
         return loss
 
@@ -53,9 +52,7 @@ class SimpleMLP(pl.LightningModule):
         data, target = valid_batch
         preds = self(data)
         _, max_pred = torch.max(preds, 1)
-        loss = self.criterium(preds, target)
+        loss = F.cross_entropy(preds, target, label_smoothing=0.1)
         self.log("valid_loss", loss)
-
-        self.valid_acc(preds, target)
-        self.log('valid_acc', self.valid_acc, on_step=True, on_epoch=True)
+        self.log('valid_acc', accuracy(preds, target), on_step=True, on_epoch=True)
         return loss
