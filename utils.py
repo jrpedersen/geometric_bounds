@@ -1,3 +1,5 @@
+import torch
+from torch import nn, optim, linalg
 
 visualisation = {}
 def named_hook(m,i,o, name=None):
@@ -8,6 +10,16 @@ def named_hook(m,i,o, name=None):
 
 def hook_fn(m, i, o):
     visualisation[m] = i
+
+def get_leaf_layers(m):
+    children = list(m.children())
+    if not children:
+        return [m]
+    leaves = []
+    for l in children:
+        leaves.extend(get_leaf_layers(l))
+    return leaves
+
 
 def get_all_layers(net):
     for name, layer in net._modules.items():
