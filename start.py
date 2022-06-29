@@ -191,6 +191,8 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
         norm_grad_wrt_weights = torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
         print(torch.allclose(norm_grad_wrt_weights, norm_grad_params(model)))
         #
+        print(norm_grad_x(model, loss_fn, inputs, labels), norm_grad_params(model))
+        print(norm_grads(model, loss_fn, optimizer, inputs, labels))
         #test = torch.autograd.functional.jacobian(model, inputs)
         # def cfnew(f,g): return lambda x : f(g(x))
         #  torch.autograd.functional.jacobian(cfnew(partial(loss_fn,target=labels), model), inputs)
