@@ -100,7 +100,7 @@ def get_bounds(model, x):
     layer_wise_bound = []
     for i in range(len(modules_list)):
         name, layer = modules_list[i]
-        if name[:2] in {'fc','sk'}:
+        if name[:2] in bound_types.keys():
             bound, _ = bound_types[name[:2]](
                 layer,
                 nn.Sequential(OrderedDict(modules_list[:i])),
@@ -147,28 +147,30 @@ def tighter_mlp_bound(model, x):
     return bound
 
 
+def cfnew(f,g): return lambda x : f(g(x))
+
+
 def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_writer):
     running_loss = 0.
     last_loss = 0.
     for i, data in enumerate(training_loader):
         inputs, labels = data
-        inputs.requires_grad_(True)
-        inputs.retain_grad()
 
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = loss_fn(outputs, labels)
 
-
         loss.backward()
-        norm_grad_wrt_input = (inputs.grad**2).sum()
+
+        grad_wrt_input = torch.autograd.functional.jacobian(cfnew(partial(loss_fn,target=labels), model), inputs)
+        norm_grad_wrt_input = (grad_wrt_input**2).sum()
         norm_grad_wrt_weights = torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
         #
         #test = torch.autograd.functional.jacobian(model, inputs)
         # def cfnew(f,g): return lambda x : f(g(x))
         #  torch.autograd.functional.jacobian(cfnew(partial(loss_fn,target=labels), model), inputs)
         # [torch.allclose(a,b) for (a,b) in zip(h_n, visualisation.values()[0:6:2])]
-        inputs.requires_grad_(False)
+
 
         #assert [torch.allclose(a,b[0]) for (a,b) in zip(h_n, list(visualisation.values())[0:6:2])]
         if 0:
@@ -202,7 +204,7 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
 
 
 def main_manual_train():
-    mnist = MNISTDataModule(data_dir="./data", batch_size=4)
+    mnist = MNISTDataModule(data_dir="./data", batch_size=32)
     weakly_relu_neg_slope = 0.01
     #simple_mlp = SimpleMLP([40,40,10], 0.01)
     #simple_mlp = SimpleMLP([40,40,40,40,10], 0.01)
