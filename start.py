@@ -149,6 +149,12 @@ def tighter_mlp_bound(model, x):
 
 def compose_fns(f,g): return lambda x : g(f(x))
 
+def norm_grad_params(model):
+    return torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
+
+def norm_grad_x(model, loss_fn, x, labels):
+    grad_x = jacrev(compose_fns(model, partial(loss_fn,target=labels)))(x)
+    return (grad_x**2).sum()
 
 def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_writer):
     running_loss = 0.
@@ -165,8 +171,9 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
         #no need for vmap since loss fn has sum over batch
         grad_wrt_input = jacrev(compose_fns(model, partial(loss_fn,target=labels)))(inputs)
         norm_grad_wrt_input = (grad_wrt_input**2).sum()
-
+        print(torch.allclose(norm_grad_x(model, loss_fn, inputs, labels), norm_grad_wrt_input))
         norm_grad_wrt_weights = torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
+        print(torch.allclose(norm_grad_wrt_weights, norm_grad_params(model)))
         #
         #test = torch.autograd.functional.jacobian(model, inputs)
         # def cfnew(f,g): return lambda x : f(g(x))
@@ -206,7 +213,7 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
 
 
 def main_manual_train():
-    mnist = MNISTDataModule(data_dir="./data", batch_size=32)
+    mnist = MNISTDataModule(data_dir="./data", batch_size=1)
     weakly_relu_neg_slope = 0.01
     #simple_mlp = SimpleMLP([40,40,10], 0.01)
     #simple_mlp = SimpleMLP([40,40,40,40,10], 0.01)
