@@ -162,8 +162,10 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
 
         loss.backward()
 
-        grad_wrt_input = torch.autograd.functional.jacobian(cfnew(partial(loss_fn,target=labels), model), inputs)
+        #no need for vmap since loss fn has sum over batch
+        grad_wrt_input = jacrev(cfnew(partial(loss_fn,target=labels), model))(inputs)
         norm_grad_wrt_input = (grad_wrt_input**2).sum()
+
         norm_grad_wrt_weights = torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
         #
         #test = torch.autograd.functional.jacobian(model, inputs)
