@@ -147,7 +147,7 @@ def tighter_mlp_bound(model, x):
     return bound
 
 
-def cfnew(f,g): return lambda x : f(g(x))
+def compose_fns(f,g): return lambda x : g(f(x))
 
 
 def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_writer):
@@ -163,7 +163,7 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
         loss.backward()
 
         #no need for vmap since loss fn has sum over batch
-        grad_wrt_input = jacrev(cfnew(partial(loss_fn,target=labels), model))(inputs)
+        grad_wrt_input = jacrev(compose_fns(model, partial(loss_fn,target=labels)))(inputs)
         norm_grad_wrt_input = (grad_wrt_input**2).sum()
 
         norm_grad_wrt_weights = torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
