@@ -156,6 +156,22 @@ def norm_grad_x(model, loss_fn, x, labels):
     grad_x = jacrev(compose_fns(model, partial(loss_fn,target=labels)))(x)
     return (grad_x**2).sum()
 
+def norm_grads(model, loss_fn, optimizer, x, labels):
+    optimizer.zero_grad()
+    inputs = x.clone()
+    inputs.requires_grad_(True)
+    inputs.retain_grad()
+
+    outputs = model(inputs)
+    loss = loss_fn(outputs, labels)
+    loss.backward()
+
+    norm_grad_wrt_input = (inputs.grad**2).sum()
+    norm_grad_wrt_params = torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
+    return (norm_grad_wrt_input,
+        norm_grad_wrt_params
+    )
+
 def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_writer):
     running_loss = 0.
     last_loss = 0.
