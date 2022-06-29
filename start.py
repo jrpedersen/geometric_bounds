@@ -1,32 +1,3 @@
-# labelwise to pytorch_lightning
-# import os
-# import random
-# import shutil
-# import time
-# import warnings
-# import functools
-# import copy
-#
-# import tqdm
-# import numpy as np
-# import matplotlib.pyplot as plt
-#
-# import torch
-# import torch.nn as nn
-# from torch.nn import functional as F
-# import torch.nn.parallel
-# import torch.backends.cudnn as cudnn
-# import torch.distributed as dist
-# import torch.optim as optim
-# import torch.multiprocessing as mp
-# import torch.utils.data
-# import torch.utils.data.distributed
-#
-# import torchvision
-# import torchvision.transforms as transforms
-# import torchvision.datasets as datasets
-# import torchvision.models as models
-#from collections.abc import Mapping
 from typing import Optional
 from collections import OrderedDict
 from functools import partial
