@@ -5,6 +5,8 @@ import torch
 from torch import nn, optim, linalg
 from functorch import jacrev, vmap
 
+import pytorch_lightning as pl
+
 def calc_bound(w, h, jh):
     return (
         (1 + linalg.vector_norm(h, dim=1)**2) /
@@ -71,7 +73,7 @@ def norm_grad_x(model, loss_fn, x, labels):
     return (grad_x**2).sum().detach()
 
 def norm_grads(model, loss_fn, optimizer, x, labels):
-    optimizer.zero_grad()
+    #optimizer.zero_grad()
     inputs = x.clone()
     inputs.requires_grad_(True)
     inputs.retain_grad()
@@ -81,7 +83,37 @@ def norm_grads(model, loss_fn, optimizer, x, labels):
     loss.backward()
 
     norm_grad_wrt_input = (inputs.grad**2).sum()
-    norm_grad_wrt_params = torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
+    norm_grad_wrt_params = torch.tensor([(param.grad**2).sum() for param in model.parameters()])
     return (norm_grad_wrt_input,
         norm_grad_wrt_params
     )
+
+def norm_gradients(model, loss_fn, inputs, labels):
+    norm_gradients_batch=[]
+    for _img, _label in zip(inputs, labels):
+        img = _img.unsqueeze(0)
+        label= _label.unsqueeze(0)
+        norm_gradients_batch.append(norm_grads(model, loss_fn,None, img, label))
+    return norm_gradients_batch
+
+
+class BoundSampler(pl.Callback):
+    """Logs to tensorboard.
+    """
+    def __init__(self, num_samples_per_epoch) -> None:
+        super().__init__()
+        self.state = 0
+        self.num_samples = num_samples_per_epoch
+    #def on_train_batch_end(self, *args, **kwargs):#, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    def on_train_batch_end(self, *args, **kwargs):
+        if self.state < self.num_samples:
+            loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)
+            trainer, model, _, batch, batch_idx = args
+            inputs, labels = batch
+
+            bounds = get_bounds(model, inputs)
+            norm_gradients_batch=norm_gradients(model, loss_fn, inputs,labels)#img, label)
+            model.log('Bound',bounds.sum())
+            self.state =+ 1
+    def on_train_epoch_end(self, *args, **kwargs):
+        self.state = 0
