@@ -64,7 +64,7 @@ def get_bounds(model, x):
 def compose_fns(f,g): return lambda x : g(f(x))
 
 def norm_grad_params(model):
-    return torch.tensor([(param.grad**2).sum() for param in model.parameters()]).sum()
+    return torch.tensor([(param.grad**2).sum() for param in model.parameters()])
 
 def norm_grad_x(model, loss_fn, x, labels):
     grad_x = jacrev(compose_fns(model, partial(loss_fn,target=labels)))(x)

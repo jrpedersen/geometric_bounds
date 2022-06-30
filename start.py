@@ -37,7 +37,7 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
         # test bounds and gradients
         bound = get_bounds(model, inputs).sum()
         norm_grad_wrt_x = norm_grad_x(model, loss_fn, inputs, labels)
-        norm_grad_wrt_params = norm_grad_params(model)
+        norm_grad_wrt_params = norm_grad_params(model).sum()
         print('Gradient with x:   ', norm_grad_wrt_x)
         print('Bound:             ', bound)
         print('Gradient with p:   ', norm_grad_wrt_params)
