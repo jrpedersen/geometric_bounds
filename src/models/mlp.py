@@ -5,6 +5,7 @@ from torch import nn, optim
 from torch.nn import functional as F
 from torchmetrics.functional import accuracy
 import pytorch_lightning as pl
+import src.func_geometric_bounds as gb
 
 class RunBase(pl.LightningModule):
     def __init__(self):
@@ -23,6 +24,11 @@ class RunBase(pl.LightningModule):
         # Logging to TensorBoard by default
         self.log('train_acc', accuracy(preds, target), on_step=True, on_epoch=True)
         self.log("train_loss", loss)
+
+        if batch_idx %16==0:
+            bounds = gb.get_bounds(self, data)
+            self.log('Bound',bounds.sum(), on_step=True)
+
         return loss
 
     def validation_step(self, valid_batch, batch_idx):
