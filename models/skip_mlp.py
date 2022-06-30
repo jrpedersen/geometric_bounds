@@ -14,6 +14,16 @@ class SkipMlpBlock(nn.Module):
     def forward(self, x):
         return x + self.activation(self.fc(x))
 
+class SkipConnection(nn.Module):
+    def __init__(self):
+        super(SkipConnection, self).__init__()
+
+def skip_mlp_block_list(in_features, out_features, negative_slope):
+        fc = nn.Linear(in_features=in_features, out_features=out_features)
+        activation = nn.LeakyReLU(negative_slope=negative_slope)
+        skip_connection = lambda x, y : x + y
+        return fc, activation, skip_connection
+
 class SkipMLP(pl.LightningModule):
     def __init__(self, hidden_layer_config, weakly_relu_neg_slope=0.01):
         super().__init__()
@@ -59,6 +69,5 @@ class SkipMLP(pl.LightningModule):
         _, max_pred = torch.max(preds, 1)
         loss = F.cross_entropy(preds, target, label_smoothing=0.1)
         self.log("valid_loss", loss)
-
         self.log('valid_acc', accuracy(preds, target), on_step=True, on_epoch=True)
         return loss
