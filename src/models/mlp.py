@@ -24,7 +24,8 @@ class RunBase(pl.LightningModule):
             bounds = gb.get_bounds(self, data)
             gradients_data, gradients_params = gb.norm_gradients(self, nn.CrossEntropyLoss(label_smoothing=0.1), data, target)
             self.log('Bound',bounds.sum(), on_step=True)
-            pdb.set_trace()
+            self.log('Gradients x',gradients_data.sum(), on_step=True)
+            self.log('Gradients parameters',gradients_params.sum(), on_step=True)
 
         preds = self(data)
         loss = F.cross_entropy(preds, target, label_smoothing=0.1)
