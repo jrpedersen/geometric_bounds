@@ -84,6 +84,9 @@ def norm_grads(model, loss_fn, optimizer, x, labels):
 
     norm_grad_wrt_input = (inputs.grad**2).sum()
     norm_grad_wrt_params = torch.tensor([(param.grad**2).sum() for param in model.parameters()])
+    for param in model.parameters():
+        param.grad = None
+
     return (norm_grad_wrt_input,
         norm_grad_wrt_params
     )
@@ -94,7 +97,7 @@ def norm_gradients(model, loss_fn, inputs, labels):
         img = _img.unsqueeze(0)
         label= _label.unsqueeze(0)
         norm_gradients_batch.append(norm_grads(model, loss_fn,None, img, label))
-    return norm_gradients_batch
+    return [torch.stack(gradients) for gradients in zip(*norm_gradients_batch)]
 
 
 class BoundSampler(pl.Callback):

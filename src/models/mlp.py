@@ -1,5 +1,5 @@
 from collections import OrderedDict
-
+import pdb
 import torch
 from torch import nn, optim
 from torch.nn import functional as F
@@ -18,17 +18,19 @@ class RunBase(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         data, target = batch
-        preds = self(data)
 
+        # Bound statistics
+        if batch_idx %16==0:
+            bounds = gb.get_bounds(self, data)
+            gradients_data, gradients_params = gb.norm_gradients(self, nn.CrossEntropyLoss(label_smoothing=0.1), data, target)
+            self.log('Bound',bounds.sum(), on_step=True)
+            pdb.set_trace()
+
+        preds = self(data)
         loss = F.cross_entropy(preds, target, label_smoothing=0.1)
         # Logging to TensorBoard by default
         self.log('train_acc', accuracy(preds, target), on_step=True, on_epoch=True)
         self.log("train_loss", loss)
-
-        if batch_idx %16==0:
-            bounds = gb.get_bounds(self, data)
-            self.log('Bound',bounds.sum(), on_step=True)
-
         return loss
 
     def validation_step(self, valid_batch, batch_idx):
@@ -90,15 +92,12 @@ class SkipMLP(RunBase):
         #layers = []
         layers = OrderedDict()
         for _i, hidden_layer in enumerate(hidden_layer_config):
-            # Create layer
-            # layers.append(nn.Linear(in_features=next_layer_input, out_features=hidden_layer))
-            # layers.append(nn.LeakyReLU(negative_slope=wealy_relu_neg_slope))
             if next_layer_input == hidden_layer:
                 layers.update({'skip_fc'+str(_i): SkipMlpBlock(in_features=next_layer_input, out_features=hidden_layer, negative_slope=weakly_relu_neg_slope)})
             else:
                 layers.update({'fc'+ str(_i): nn.Linear(in_features=next_layer_input, out_features=hidden_layer)})
                 layers.update({'af'+ str(_i): nn.LeakyReLU(negative_slope=weakly_relu_neg_slope)})
-                # Update input size
+            # Update input size
             next_layer_input = hidden_layer
 
         self.layers = nn.Sequential(layers)
