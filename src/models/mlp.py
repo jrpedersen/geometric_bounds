@@ -23,8 +23,9 @@ class RunBase(pl.LightningModule):
         if batch_idx %16==0:
             bounds = gb.get_bounds(self, data)
             gradients_data, gradients_params = gb.norm_gradients(self, nn.CrossEntropyLoss(label_smoothing=0.1), data, target)
-            self.log('Bound',bounds.sum(), on_step=True)
-            self.log('Gradients x',gradients_data.sum(), on_step=True)
+            self.log('Gradients_x times bound',(
+                gradients_data* bounds.sum(dim=1)
+            ).sum(), on_step=True)
             self.log('Gradients parameters',gradients_params.sum(), on_step=True)
 
         preds = self(data)
