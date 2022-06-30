@@ -17,10 +17,8 @@ from torch.utils.data import random_split, DataLoader
 from torchvision.datasets import MNIST
 from torchvision import transforms
 
-from models.simple_mlp import SimpleMLP
-from models.skip_mlp import SkipMLP
-from data.mnist import MNISTDataModule
-from func_geometric_bounds import norm_grad_x, norm_grad_params, get_bounds
+from src.models.mlp import SkipMLP, SimpleMLP
+from src.data.mnist import MNISTDataModule
 
 def main():
     mnist = MNISTDataModule(data_dir="./data", batch_size=32)
