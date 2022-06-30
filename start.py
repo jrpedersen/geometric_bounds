@@ -1,8 +1,8 @@
+import re
 from typing import Optional
 from collections import OrderedDict
 from functools import partial
 import pdb
-
 
 import torch
 from torch import nn, optim, linalg
@@ -20,7 +20,6 @@ from torchvision import transforms
 from models.simple_mlp import SimpleMLP
 from models.skip_mlp import SkipMLP
 from data.mnist import MNISTDataModule
-from utils import get_all_layers
 from func_geometric_bounds import norm_grad_x, norm_grad_params, get_bounds
 
 def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_writer):
@@ -57,39 +56,41 @@ def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_w
     return last_loss
 
 
-
 def main_manual_train():
     mnist = MNISTDataModule(data_dir="./data", batch_size=1)
     weakly_relu_neg_slope = 0.01
     #simple_mlp = SimpleMLP([40,40,10], 0.01)
     #simple_mlp = SimpleMLP([40,40,40,40,10], 0.01)
-    simple_mlp = SkipMLP([40,40,40,40,10], weakly_relu_neg_slope)
-    logger = TensorBoardLogger('lightning_logs/', name='my_model')
+    model = SkipMLP([40,40,40,40,10], weakly_relu_neg_slope)
+    model_name = re.findall(r"[\w]+", str(type(model)))[-1]
+    logger = TensorBoardLogger('lightning_logs/', name=model_name)
     mnist.setup()
-    optimizer = optim.Adam(simple_mlp.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
-    train_one_epoch(mnist.train_dataloader(), simple_mlp, nn.CrossEntropyLoss(label_smoothing=0.1), optimizer, 1, None)
+    train_one_epoch(mnist.train_dataloader(), model, nn.CrossEntropyLoss(label_smoothing=0.1), optimizer, 1, None)
+
 
 def main():
     mnist = MNISTDataModule(data_dir="./data", batch_size=32)
 
 
     #simple_mlp = SimpleMLP([40,40,10])  # this is our LightningModule
-    simple_mlp = SkipMLP([40,40,40,40,10], 0.01)
-    logger = TensorBoardLogger('lightning_logs/', name='my_model')
+    model = SkipMLP([40,40,40,40,10], 0.01)
+    model_name = re.findall(r"[\w]+", str(type(model)))[-1]
+    logger = TensorBoardLogger('lightning_logs/', name=model_name)
     trainer = pl.Trainer(max_epochs=1,
                          num_processes=1,
                          accelerator='gpu',
                          devices=1,
                          logger=logger,
                          deterministic=True)
-    trainer.fit(simple_mlp, datamodule=mnist)
+    trainer.fit(model, datamodule=mnist)
 
 
 if __name__ == '__main__':
     pl.seed_everything(1234)
-    #main()
-    main_manual_train()
+    main()
+    #main_manual_train()
     #print(cifar100.train_dataloader)
     #trainer = pl.Trainer(max_epochs=1, num_processes=1, gpus=0)
     #trainer.fit(model, datamodule=cifar100)
