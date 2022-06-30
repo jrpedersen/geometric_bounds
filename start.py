@@ -22,54 +22,6 @@ from models.skip_mlp import SkipMLP
 from data.mnist import MNISTDataModule
 from func_geometric_bounds import norm_grad_x, norm_grad_params, get_bounds
 
-def train_one_epoch(training_loader, model, loss_fn,optimizer, epoch_index, tb_writer):
-    running_loss = 0.
-    last_loss = 0.
-    for i, data in enumerate(training_loader):
-        inputs, labels = data
-
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = loss_fn(outputs, labels)
-        loss.backward()
-
-        # test bounds and gradients
-        bound = get_bounds(model, inputs).sum()
-        norm_grad_wrt_x = norm_grad_x(model, loss_fn, inputs, labels)
-        norm_grad_wrt_params = norm_grad_params(model).sum()
-        print('Gradient with x:   ', norm_grad_wrt_x)
-        print('Bound:             ', bound)
-        print('Gradient with p:   ', norm_grad_wrt_params)
-        print(f"Is {bound*norm_grad_wrt_x} < {norm_grad_wrt_params}")
-        print(bound*norm_grad_wrt_x < norm_grad_wrt_params)
-        pdb.set_trace()
-        optimizer.step()
-        # Gather data and report
-        running_loss += loss.item()
-        if i % 1000 == 999:
-            last_loss = running_loss / 1000 # loss per batch
-            print('  batch {} loss: {}'.format(i + 1, last_loss))
-            #tb_x = epoch_index * len(training_loader) + i + 1
-            #tb_writer.add_scalar('Loss/train', last_loss, tb_x)
-            running_loss = 0.
-
-    return last_loss
-
-
-def main_manual_train():
-    mnist = MNISTDataModule(data_dir="./data", batch_size=1)
-    weakly_relu_neg_slope = 0.01
-    #simple_mlp = SimpleMLP([40,40,10], 0.01)
-    #simple_mlp = SimpleMLP([40,40,40,40,10], 0.01)
-    model = SkipMLP([40,40,40,40,10], weakly_relu_neg_slope)
-    model_name = re.findall(r"[\w]+", str(type(model)))[-1]
-    logger = TensorBoardLogger('lightning_logs/', name=model_name)
-    mnist.setup()
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
-
-    train_one_epoch(mnist.train_dataloader(), model, nn.CrossEntropyLoss(label_smoothing=0.1), optimizer, 1, None)
-
-
 def main():
     mnist = MNISTDataModule(data_dir="./data", batch_size=32)
 
@@ -80,8 +32,8 @@ def main():
     logger = TensorBoardLogger('lightning_logs/', name=model_name)
     trainer = pl.Trainer(max_epochs=1,
                          num_processes=1,
-                         accelerator='gpu',
-                         devices=1,
+                         #accelerator='gpu',
+                         #devices=1,
                          logger=logger,
                          deterministic=True)
     trainer.fit(model, datamodule=mnist)
