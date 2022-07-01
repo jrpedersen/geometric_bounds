@@ -23,16 +23,20 @@ class RunBase(pl.LightningModule):
         if batch_idx %16==0:
             bounds = gb.get_bounds(self, data)
             gradients_data, gradients_params = gb.norm_gradients(self, nn.CrossEntropyLoss(label_smoothing=0.1), data, target)
-            self.log('Gradients_x times bound',(
+            self.log('bounds/Gradients_x', gradients_data.sum())
+            self.log('bounds/Bound', bounds.sum())
+            self.log('bounds/Bound div Gradients_x', (bounds.sum(dim=1)/gradients_data).mean())
+            self.log('bounds/Gradients_x div Bound', (gradients_data/bounds.sum(dim=1)).mean())
+            self.log('bounds/Gradients_x times bound',(
                 gradients_data* bounds.sum(dim=1)
             ).sum(), on_step=True)
-            self.log('Gradients parameters',gradients_params.sum(), on_step=True)
+            self.log('bounds/Gradients parameters',gradients_params.sum(), on_step=True)
 
         preds = self(data)
         loss = F.cross_entropy(preds, target, label_smoothing=0.1)
         # Logging to TensorBoard by default
-        self.log('train_acc', accuracy(preds, target), on_step=True, on_epoch=True)
-        self.log("train_loss", loss)
+        self.log('train/train_acc', accuracy(preds, target), on_step=True, on_epoch=True)
+        self.log("train/train_loss", loss)
         return loss
 
     def validation_step(self, valid_batch, batch_idx):
@@ -40,8 +44,8 @@ class RunBase(pl.LightningModule):
         preds = self(data)
         _, max_pred = torch.max(preds, 1)
         loss = F.cross_entropy(preds, target, label_smoothing=0.1)
-        self.log("valid_loss", loss)
-        self.log('valid_acc', accuracy(preds, target), on_step=True, on_epoch=True)
+        self.log("validation/valid_loss", loss)
+        self.log('validation/valid_acc', accuracy(preds, target), on_step=True, on_epoch=True)
         return loss
 
 
