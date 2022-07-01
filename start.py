@@ -1,8 +1,9 @@
 import re
+import os
+import itertools
 from typing import Optional
 from collections import OrderedDict
 from functools import partial
-import pdb
 
 import torch
 from torch import nn, optim, linalg
@@ -26,7 +27,7 @@ def main(config):
     model = config['model_type'](config)
     model_name = re.findall(r"[\w]+", str(type(model)))[-1]
 
-    logger = TensorBoardLogger('lightning_logs/', name=model_name)
+    logger = TensorBoardLogger('lightning_logs/', name=model_name, version="depth"+str(config['hl_depth']))
     logger.log_hyperparams(config)
 
     trainer = pl.Trainer(max_epochs=config['max_epochs'],
@@ -49,9 +50,16 @@ if __name__ == '__main__':
         'hl_width': 40,
         'negative_slope': 0.01,
         # training
-        'max_epochs': 1,
+        'max_epochs': 40,
     }
-    main(config)
+
+    for model_type, hl_depth in itertools.product(
+        [SimpleMLP, SkipMLP],
+        range(2,11,2)
+    ):
+        config['model_type'] = model_type
+        config['hl_depth'] = hl_depth
+        main(config)
     #main_manual_train()
     #print(cifar100.train_dataloader)
     #trainer = pl.Trainer(max_epochs=1, num_processes=1, gpus=0)
