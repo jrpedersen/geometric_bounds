@@ -50,27 +50,21 @@ class RunBase(pl.LightningModule):
 
 
 class SimpleMLP(RunBase):
-    def __init__(self, hidden_layer_config, wealy_relu_neg_slope=0.01):
+    def __init__(self, config):
         super(RunBase, self).__init__()
         next_layer_input = 784
         #layers = []
+        hidden_layers = config['hl_depth'] * [config['hl_width']]
         layers = OrderedDict()
-        for _i, hidden_layer in enumerate(hidden_layer_config):
+        for _i, hidden_layer in enumerate(hidden_layers):
             # Create layer
-            # layers.append(nn.Linear(in_features=next_layer_input, out_features=hidden_layer))
-            # layers.append(nn.LeakyReLU(negative_slope=wealy_relu_neg_slope))
             layers.update({'fc'+ str(_i): nn.Linear(in_features=next_layer_input, out_features=hidden_layer)})
-            layers.update({'af'+ str(_i): nn.LeakyReLU(negative_slope=wealy_relu_neg_slope)})
+            layers.update({'af'+ str(_i): nn.LeakyReLU(negative_slope=config['negative_slope'])})
             # Update input size
             next_layer_input = hidden_layer
-
+        layers.update({'fc'+ str(len(hidden_layers)): nn.Linear(in_features=next_layer_input, out_features=10)})
+        layers.update({'af'+ str(len(hidden_layers)): nn.LeakyReLU(negative_slope=config['negative_slope'])})
         self.layers = nn.Sequential(layers)
-
-        #self.criterium = nn.CrossEntropyLoss(label_smoothing= 0.1)
-
-        # metrics
-        #self.train_acc = torchmetrics.Accuracy()
-        #self.valid_acc = torchmetrics.Accuracy()
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=1e-3)
@@ -92,22 +86,23 @@ class SkipMlpBlock(nn.Module):
 
 
 class SkipMLP(RunBase):
-    def __init__(self, hidden_layer_config, weakly_relu_neg_slope=0.01):
+    def __init__(self, config):
         super(RunBase, self).__init__()
         next_layer_input = 784
         #layers = []
+        hidden_layers = config['hl_depth'] * [config['hl_width']]
         layers = OrderedDict()
-        for _i, hidden_layer in enumerate(hidden_layer_config):
+        for _i, hidden_layer in enumerate(hidden_layers):
             if next_layer_input == hidden_layer:
-                layers.update({'skip_fc'+str(_i): SkipMlpBlock(in_features=next_layer_input, out_features=hidden_layer, negative_slope=weakly_relu_neg_slope)})
+                layers.update({'skip_fc'+str(_i): SkipMlpBlock(in_features=next_layer_input, out_features=hidden_layer, negative_slope=config['negative_slope'])})
             else:
                 layers.update({'fc'+ str(_i): nn.Linear(in_features=next_layer_input, out_features=hidden_layer)})
-                layers.update({'af'+ str(_i): nn.LeakyReLU(negative_slope=weakly_relu_neg_slope)})
+                layers.update({'af'+ str(_i): nn.LeakyReLU(negative_slope=config['negative_slope'])})
             # Update input size
             next_layer_input = hidden_layer
-
+        layers.update({'fc'+ str(len(hidden_layers)): nn.Linear(in_features=next_layer_input, out_features=10)})
+        layers.update({'af'+ str(len(hidden_layers)): nn.LeakyReLU(negative_slope=config['negative_slope'])})
         self.layers = nn.Sequential(layers)
-
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=1e-3)
