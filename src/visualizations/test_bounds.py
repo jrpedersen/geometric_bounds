@@ -6,12 +6,9 @@ import matplotlib.pyplot as plt
 
 from experiments import export_metrics
 
-# TODO: Get list of folders in a folder path to navigate through to export data from tb
 lightning_logs =pathlib.Path("lightning_logs")
 logs_models = list(lightning_logs.iterdir())
-#models_experiments = {model.name: [path for path in model.iterdir()] for model in logs_models}
 models_experiments = [path for model in logs_models for path in model.iterdir()]
-# TODO: Define metrics to be used from each experiment
 
 metrics = ['bounds/Gradients_x times bound',
            'bounds/Gradients parameters']
@@ -26,6 +23,7 @@ for key, dictframes in dataframes.items():
     dictframes_all[new_key] = pd.concat([v.rename(columns={'value': k}) for k,v in dictframes.items()],axis=1)
     # k..split('/')[-1]
 
+# Test whether any instance of the bound not holdling.
 c=0
 for k,df in dictframes_all.items():
     c += (df[metrics[1]] < df[metrics[0]]).any()
