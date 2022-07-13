@@ -23,7 +23,6 @@ from src.data.mnist import MNISTDataModule
 
 def main(config):
     mnist = MNISTDataModule(data_dir="./data", batch_size=config['batch_size'])
-    import pdb; pdb.set_trace()
     model = config['model_type'](config)
     model_name = re.findall(r"[\w]+", str(type(model)))[-1]
 
