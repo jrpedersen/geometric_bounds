@@ -5,6 +5,8 @@ from typing import Optional
 from collections import OrderedDict
 from functools import partial
 
+import git
+
 import torch
 from torch import nn, optim, linalg
 
@@ -40,7 +42,12 @@ def main(config):
 
 if __name__ == '__main__':
     pl.seed_everything(1234)
+    # Git current git commit:
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
     config = {
+        # git revision
+        'sha': sha,
         # dataset
         'batch_size': 32,
         # model config
