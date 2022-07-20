@@ -28,7 +28,11 @@ def main(config):
     model = config['model_type'](config)
     model_name = re.findall(r"[\w]+", str(type(model)))[-1]
 
-    logger = TensorBoardLogger('lightning_logs/', name=model_name, version="depth"+str(config['hl_depth']))
+    logger = TensorBoardLogger(
+        'lightning_logs/',
+        name=model_name,
+        version="depth"+str(config['hl_depth'])
+    )
     logger.log_hyperparams(config)
 
     trainer = pl.Trainer(max_epochs=config['max_epochs'],
@@ -52,20 +56,35 @@ if __name__ == '__main__':
         'batch_size': 32,
         # model config
         'model_type': SimpleMLP,
-        'hl_depth': 2,
-        'hl_width': 40,
+        #'num_parameters': (28**2 + 10) * w + (h-1)*w**2 # for single P 28**2 * 10
+        #'hl_depth': 2,
+        #'hl_width': 40,
         'negative_slope': 0.01,
         # training
-        'max_epochs': 40,
+        'max_epochs': 20,
     }
-
-    for model_type, hl_depth in itertools.product(
-        [SimpleMLP, SkipMLP],
-        range(2,11,2)
-    ):
-        config['model_type'] = model_type
-        config['hl_depth'] = hl_depth
+    # w * ((28*2 + 10) + (h-1)*w) aaprox h*w^2
+    # TODO: Find way to split depth versus wide.
+    # (h,w) = [(1,8), (4,4), (16,2), (64,1), () ]
+    # TODO: Change loop to set width and weight dependent on num parameters
+    # TODO: Perhaps around 10 layers of 40x40 size ish. And 1,2,4 to that.
+    # (2**4 * 10**4)
+    # OLD
+    num_params = lambda w, h : (h-1)*w**2 + (28**2 + 10) * w
+    base_width = 8 * 40 //2
+    base_depth = 1
+    for n in range(3):
+        config['hl_width'] = base_width // (2**n)
+        config['hl_depth'] = base_depth * 2**(2*n) + int(
+            2**(-0.5) * 2**(2**0.75*(n-1)) * (n>0) * (28**2 + 10)/config['hl_width'] #* (1-2**(-n))
+        )
+        #print(config['hl_width'])
+        #print(config['hl_depth'])
+        #print(num_params(config['hl_width'], config['hl_depth']))
         main(config)
+    # Add configuration for single wide network with all the parameters
+
+
     #main_manual_train()
     #print(cifar100.train_dataloader)
     #trainer = pl.Trainer(max_epochs=1, num_processes=1, gpus=0)
