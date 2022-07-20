@@ -35,8 +35,8 @@ class RunBase(pl.LightningModule):
         preds = self(data)
         loss = F.cross_entropy(preds, target, label_smoothing=0.1)
         # Logging to TensorBoard by default
-        self.log('train/train_acc', accuracy(preds, target), on_step=True, on_epoch=True)
-        self.log("train/train_loss", loss)
+        self.log('train/acc', accuracy(preds, target), on_step=True, on_epoch=True)
+        self.log("train/loss", loss)
         return loss
 
     def validation_step(self, valid_batch, batch_idx):
@@ -44,8 +44,8 @@ class RunBase(pl.LightningModule):
         preds = self(data)
         _, max_pred = torch.max(preds, 1)
         loss = F.cross_entropy(preds, target, label_smoothing=0.1)
-        self.log("validation/valid_loss", loss)
-        self.log('validation/valid_acc', accuracy(preds, target), on_step=True, on_epoch=True)
+        self.log("validation/loss", loss)
+        self.log('validation/acc', accuracy(preds, target), on_step=True, on_epoch=True)
         return loss
 
 
